@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <fstream>
 
 #include "mbedtls/debug.h"
 
@@ -117,7 +118,21 @@ int main(int argc, char *argv[]) {
     }
 
     if (*download_url) {
-        std::cout << "[main] Start FTP download" << std::endl;
+        
+        std::string fn;
+        std::string d_url = download_url;
+        auto fn_delim = d_url.find_last_of('/');
+        if (fn_delim != std::string::npos) {
+            fn = d_url.substr(fn_delim + 1);
+        }
+        if (fn.empty()) {
+            fn = "test_download.txt";
+        }
+
+        std::cout << "[main] Start FTP download (" << fn.c_str() << ")" << std::endl;
+
+        std::ofstream file;
+        file.open (fn.c_str());
 
         MicroFtp::FtpClient ftp;
 
@@ -126,24 +141,24 @@ int main(int argc, char *argv[]) {
         size_t trackTotal = 0;
 
         ftp.getFile(download_url,
-            [&total, &trackTotal] (unsigned char *data, size_t len) -> size_t {
+            [&file, &total, &trackTotal] (unsigned char *data, size_t len) -> size_t {
+                file.write((const char*)data, len);
                 if (total == 0) {
                     //only print first chunk
                     printf("[main] download preview: %.*s [...]\n", std::min((int) len, 64), (const char*) data);
                 }
                 total += len;
-                if (total < 1024) {
+                if (total < 16384) {
                     printf("[main] download progress: %zu B\n", total);
-                    trackTotal = total;
-                } else if (total < 102400) {
-                    printf("[main] download progress: %zu kB\n", total / 1024);
+                    //trackTotal = total;
                 } else if (total - trackTotal >= 102400) {
                     trackTotal += 102400;
                     printf("[main] download progress: %zu kB\n", trackTotal / 1024);
                 }
                 return len;
-            }, [&inProgress] () {
+            }, [&file, &inProgress] () {
                 std::cout << "[main] download -- onClose" << std::endl;
+                file.close();
                 inProgress = false;
             });
         
