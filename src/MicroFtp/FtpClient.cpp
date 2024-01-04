@@ -236,7 +236,7 @@ void FtpClient::close_ctrl() {
     mbedtls_net_close(&ctrl_fd);
     ctrl_opened = false;
 
-    if (onClose) {
+    if (onClose && !data_opened) {
         onClose();
         onClose = nullptr;
     }
@@ -257,6 +257,11 @@ void FtpClient::close_data() {
     mbedtls_net_close(&data_fd);
     data_opened = false;
     data_conn_accepted = false;
+
+    if (onClose && !ctrl_opened) {
+        onClose();
+        onClose = nullptr;
+    }
 }
 
 int FtpClient::handshake_tls() {
@@ -489,7 +494,7 @@ void FtpClient::process_ctrl() {
             MF_DBG_DEBUG("select directory %s", dir.empty() ? "/" : dir.c_str());
             send_cmd("CWD", dir.empty() ? "/" : dir.c_str());
         } else if (!strncmp("250", line, 3)) { // Requested file action okay, completed
-            MF_DBG_VERBOSE("enter passive mode");
+            MF_DBG_DEBUG("enter passive mode");
             if (isSecure) {
                 send_cmd("PBSZ 0\r\n"
                          "PROT P\r\n" //RFC 4217: set FTP session Private
@@ -645,12 +650,6 @@ void FtpClient::process_data() {
 
 void FtpClient::loop() {
 
-    if (!ctrl_opened && data_opened) {
-        MF_DBG_ERR("dangling data connection");
-        close_data(); //clean connection
-        return;
-    }
-
     if (ctrl_opened) {
         process_ctrl();
     }
@@ -695,7 +694,7 @@ bool FtpClient::read_url_ctrl(const char *ftp_url_raw) {
         return false;
     }
 
-    MF_DBG_VERBOSE("parsed dir: %s; fname: %s", dir.c_str(), fname.c_str());
+    MF_DBG_DEBUG("parsed dir: %s; fname: %s", dir.c_str(), fname.c_str());
 
     //parse FTP URL: user, pass, host, port
 
@@ -719,7 +718,7 @@ bool FtpClient::read_url_ctrl(const char *ftp_url_raw) {
         }
     }
 
-    MF_DBG_VERBOSE("parsed user: %s; pass: %.2s***", user.c_str(), pass.empty() ? "-" : pass.c_str());
+    MF_DBG_DEBUG("parsed user: %s; pass: %.2s***", user.c_str(), pass.empty() ? "-" : pass.c_str());
 
     if (host_port.empty()) {
         MF_DBG_ERR("missing hostname");
@@ -728,13 +727,15 @@ bool FtpClient::read_url_ctrl(const char *ftp_url_raw) {
 
     auto host_port_delim = host_port.find(':');
     if (host_port_delim != std::string::npos) {
-        ctrl_host = host_port.substr(host_port_delim + 1);
-        ctrl_port = host_port.substr(0, host_port_delim);
+        ctrl_host = host_port.substr(0, host_port_delim);
+        ctrl_port = host_port.substr(host_port_delim + 1);
     } else {
         //use default port number
         ctrl_host = host_port;
         ctrl_port = "21";
     }
+
+    MF_DBG_DEBUG("parsed host: %s; port: %s", ctrl_host.c_str(), ctrl_port.c_str());
 
     return true;
 }

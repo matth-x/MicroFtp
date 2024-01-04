@@ -18,6 +18,8 @@ Currently, the compatibility with the following FTP servers has been tested:
 | --- | --- | --- |
 | [vsftp](https://security.appspot.com/vsftpd.html) |  | ✔️ |
 | [Rebex](https://www.rebex.net/) | ✔️ | ✔️ |
+| [Windows Server 2022](https://www.microsoft.com/en-us/windows-server) | ✔️ | ✔️ |
+| [SFTPGo](https://github.com/drakkan/sftpgo) | ✔️ | |
 
 #### Usage
 
