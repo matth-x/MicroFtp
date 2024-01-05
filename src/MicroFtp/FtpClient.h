@@ -63,7 +63,7 @@ private:
 
     enum class Method {
         Retrieve,  //download file
-        Append,    //upload file
+        Store,     //upload file
         UNDEFINED
     };
     Method method = Method::UNDEFINED;

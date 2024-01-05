@@ -233,7 +233,7 @@ void FtpClient::close_ctrl() {
         mbedtls_ssl_close_notify(&ctrl_ssl);
         ctrl_ssl_established = false;
     }
-    mbedtls_net_close(&ctrl_fd);
+    mbedtls_net_free(&ctrl_fd);
     ctrl_opened = false;
 
     if (onClose && !data_opened) {
@@ -254,7 +254,7 @@ void FtpClient::close_data() {
         mbedtls_ssl_close_notify(&data_ssl);
         data_ssl_established = false;
     }
-    mbedtls_net_close(&data_fd);
+    mbedtls_net_free(&data_fd);
     data_opened = false;
     data_conn_accepted = false;
 
@@ -384,7 +384,7 @@ bool FtpClient::postFile(const char *ftp_url_raw, std::function<size_t(unsigned 
 
     MF_DBG_DEBUG("init upload %s", ftp_url_raw);
 
-    this->method = Method::Append;
+    this->method = Method::Store;
     this->fileReader = fileReader;
     this->onClose = onClose;
 
@@ -519,9 +519,9 @@ void FtpClient::process_ctrl() {
             if (method == Method::Retrieve) {
                 MF_DBG_DEBUG("request download for %s", fname.c_str());
                 send_cmd("RETR", fname.c_str());
-            } else if (method == Method::Append) {
+            } else if (method == Method::Store) {
                 MF_DBG_DEBUG("request upload for %s", fname.c_str());
-                send_cmd("APPE", fname.c_str());
+                send_cmd("STOR", fname.c_str());
             } else {
                 MF_DBG_ERR("internal error");
                 send_cmd("QUIT");
@@ -609,7 +609,7 @@ void FtpClient::process_data() {
         }
 
         //success
-    } else if (method == Method::Append) {
+    } else if (method == Method::Store) {
 
         if (data_buf_avail == 0) {
             //load new data from file to write on socket
